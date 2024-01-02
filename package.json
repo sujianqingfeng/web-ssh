@@ -1,0 +1,20 @@
+{
+  "name": "web-ssh",
+  "version": "1.0.0",
+  "description": "",
+  "author": "",
+  "license": "ISC",
+  "keywords": [],
+  "main": "index.js",
+  "scripts": {
+    "dev": "pnpm run --filter server dev",
+    "dev:ui": "pnpm run --filter ui dev"
+  },
+  "dependencies": {
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@sujian/eslint-config": "^1.0.4",
+    "eslint": "^8.54.0"
+  }
+}
