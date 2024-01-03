@@ -18,7 +18,41 @@ function App() {
       socket.emit('ssh-connection')
     }
 
-    const onSSHConnection = () => {}
+    const onSSHConnection = () => {
+      console.log('🚀 ~ file: App.tsx:22 ~ onSSHConnection ~ onSSHConnection:')
+      let tempChar = ''
+      term.attachCustomKeyEventHandler((event) => {
+        console.log(
+          '🚀 ~ file: App.tsx:24 ~ term.attachCustomKeyEventHandler ~ event:',
+          event
+        )
+
+        if (event.type === 'keypress' && event.key !== 'Enter') {
+          const char = event.key || String.fromCharCode(event.keyCode)
+          console.log(
+            '🚀 ~ file: App.tsx:25 ~ term.attachCustomKeyEventHandler ~ char:',
+            char
+          )
+          term.write(char)
+          tempChar += char
+        }
+
+        if (event.type === 'keydown') {
+          if (event.key === 'Backspace') {
+            if (tempChar.length > 0) {
+              term.write('\b \b')
+              tempChar = tempChar.slice(0, -1)
+            }
+          }
+          if (event.key === 'Enter') {
+            term.write('\r\n')
+            socket.emit('command', tempChar)
+            tempChar = ''
+          }
+        }
+        return false
+      })
+    }
 
     const onData = (data: Uint8Array) => {
       const text = new TextDecoder().decode(data)

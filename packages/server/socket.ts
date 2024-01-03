@@ -20,6 +20,7 @@ export function createSocketServer(server: Server) {
       conn.on('ready', () => {
         console.log('Client :: ready')
         socket.emit('ssh-connection')
+        let currentCommand = ''
         conn.shell((err, stream) => {
           if (err) {
             throw err
@@ -33,9 +34,13 @@ export function createSocketServer(server: Server) {
               console.log(`STDOUT: ${data}`)
               socket.emit('data', data)
             })
-          stream.end('ls -l\n')
+          socket.on('command', (command) => {
+            currentCommand = command
+            stream.write(`${command}\n`)
+          })
         })
       })
+
       conn.connect({
         host: '127.0.0.1',
         port: 2222,
