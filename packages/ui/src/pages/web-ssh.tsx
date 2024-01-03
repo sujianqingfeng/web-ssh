@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Terminal } from 'xterm'
-import { socket } from './utils/socket'
+import { socket } from '../utils/socket'
 import 'xterm/css/xterm.css'
 
 function App() {

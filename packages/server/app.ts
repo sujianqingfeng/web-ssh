@@ -1,31 +1,37 @@
 import { createServer } from 'http'
 import cors from '@fastify/cors'
-import Fastify, { FastifyInstance } from 'fastify'
+import Fastify from 'fastify'
+import {
+  ZodTypeProvider,
+  serializerCompiler,
+  validatorCompiler
+} from 'fastify-type-provider-zod'
+import { proxyRouters } from './proxy'
 import { createSocketServer } from './socket'
 
 const server = createServer()
 
-const fastify: FastifyInstance = Fastify({
-  serverFactory: (handler) => server.on('request', handler)
-})
+const app = Fastify({
+  serverFactory: (handler) => server.on('request', handler),
+  logger: true
+}).withTypeProvider<ZodTypeProvider>()
+
+app.register(cors)
+app.setValidatorCompiler(validatorCompiler)
+app.setSerializerCompiler(serializerCompiler)
 
 createSocketServer(server)
 
-fastify.register(cors)
-
-fastify.get('/', async (request, reply) => {
-  return 'hello world'
-})
+app.register(proxyRouters)
 
 const start = async () => {
   try {
-    await fastify.listen({ port: 3000 })
+    await app.listen({ port: 3000 })
 
-    const address = fastify.server.address()
+    const address = app.server.address()
     const port = typeof address === 'string' ? address : address?.port
-    console.log('🚀 ~ file: app.ts:29 ~ start ~ port:', port)
   } catch (err) {
-    fastify.log.error(err)
+    app.log.error(err)
     process.exit(1)
   }
 }
