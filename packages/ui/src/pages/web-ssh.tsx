@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react'
 import { Terminal } from 'xterm'
 import { socket } from '../utils/socket'
 import 'xterm/css/xterm.css'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 function App() {
   const xtermRef = useRef<HTMLDivElement>(null)
@@ -52,6 +54,8 @@ function App() {
         }
         return false
       })
+
+      // term.
     }
 
     const onData = (data: Uint8Array) => {
@@ -73,6 +77,11 @@ function App() {
   return (
     <>
       <h1 className="text-[30px] font-bold">Web SSH</h1>
+      <div>
+        <div className="grid w-full max-w-sm items-center gap-1.5">
+          <Input id="picture" type="file" />
+        </div>
+      </div>
       <div ref={xtermRef}></div>
     </>
   )
