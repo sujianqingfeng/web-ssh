@@ -3,13 +3,21 @@ import { Terminal } from 'xterm'
 import { socket } from '../utils/socket'
 import 'xterm/css/xterm.css'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 
-function App() {
+function removeChars(term: Terminal, len: number) {
+  for (let i = 0; i < len; i++) {
+    term.write('\b \b')
+  }
+}
+
+export default function SSH() {
   const xtermRef = useRef<HTMLDivElement>(null)
+  const term = new Terminal()
+
+  console.log('useEffect is running')
 
   useEffect(() => {
-    const term = new Terminal()
+    xtermRef.current!.innerHTML = ''
     term.open(xtermRef.current!)
 
     const onDisconnect = () => {
@@ -17,45 +25,32 @@ function App() {
     }
 
     const onConnect = () => {
-      socket.emit('ssh-connection')
+      socket.emit('ssh-connection', onSSHConnection)
     }
 
     const onSSHConnection = () => {
-      console.log('🚀 ~ file: App.tsx:22 ~ onSSHConnection ~ onSSHConnection:')
-      let tempChar = ''
-      term.attachCustomKeyEventHandler((event) => {
-        console.log(
-          '🚀 ~ file: App.tsx:24 ~ term.attachCustomKeyEventHandler ~ event:',
-          event
-        )
+      // term.attachCustomKeyEventHandler((event) => {
+      //   return false
+      // })
 
-        if (event.type === 'keypress' && event.key !== 'Enter') {
-          const char = event.key || String.fromCharCode(event.keyCode)
-          console.log(
-            '🚀 ~ file: App.tsx:25 ~ term.attachCustomKeyEventHandler ~ char:',
-            char
-          )
-          term.write(char)
-          tempChar += char
-        }
+      term.onKey((event) => {
+        console.log('🚀 ~ file: web-ssh.tsx:53 ~ term.onKey ~ event:', event)
+        const { domEvent, key } = event
 
-        if (event.type === 'keydown') {
-          if (event.key === 'Backspace') {
-            if (tempChar.length > 0) {
-              term.write('\b \b')
-              tempChar = tempChar.slice(0, -1)
-            }
-          }
-          if (event.key === 'Enter') {
-            term.write('\r\n')
-            socket.emit('command', tempChar)
-            tempChar = ''
-          }
+        switch (domEvent.key) {
+          case 'ArrowUp':
+          case 'ArrowDown':
+          case 'ArrowLeft':
+          case 'ArrowRight':
+            break
+
+          default:
+            socket.emit('command', key)
+            break
         }
-        return false
       })
 
-      // term.
+      term.focus()
     }
 
     const onData = (data: Uint8Array) => {
@@ -65,26 +60,42 @@ function App() {
 
     socket.on('connect', onConnect)
     socket.on('disconnect', onDisconnect)
-    socket.on('ssh-connection', onSSHConnection)
     socket.on('data', onData)
 
     return () => {
       socket.off('connect', onConnect)
       socket.off('disconnect', onDisconnect)
+      socket.off('data', onData)
+      socket.off('ssh-connection', onSSHConnection)
     }
   }, [])
 
+  const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+    console.log('🚀 ~ file: web-ssh.tsx:67 ~ onFileChange ~ file:', file)
+    socket.emit('upload', file, file.name)
+  }
+
   return (
     <>
-      <h1 className="text-[30px] font-bold">Web SSH</h1>
-      <div>
-        <div className="grid w-full max-w-sm items-center gap-1.5">
-          <Input id="picture" type="file" />
+      <header className="p-2 flex justify-between items-center ">
+        <div className="text-[30px] font-bold">Web SSH</div>
+        <div className="flex justify-center items-center">
+          <label className="inline-flex cursor-pointer font-medium bg-primary text-sm rounded-md text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">
+            Upload
+            <Input
+              className="hidden"
+              id="picture"
+              type="file"
+              onChange={onFileChange}
+            />
+          </label>
         </div>
-      </div>
-      <div ref={xtermRef}></div>
+      </header>
+      <div id="terminal" ref={xtermRef}></div>
     </>
   )
 }
-
-export default App

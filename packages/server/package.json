@@ -7,11 +7,10 @@
   "keywords": [],
   "main": "index.js",
   "scripts": {
-    "dev": "tsx --watch app.ts"
+    "dev": "tsx app.ts"
   },
   "dependencies": {
     "@fastify/cors": "^8.5.0",
-    "@fastify/type-provider-json-schema-to-ts": "^2.2.2",
     "@types/ssh2": "^1.11.18",
     "fastify": "^4.25.2",
     "fastify-type-provider-zod": "^1.1.9",
