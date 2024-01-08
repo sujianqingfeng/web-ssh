@@ -1,27 +1,33 @@
 import { Server } from 'http'
 import { join } from 'path/posix'
 import { Server as SocketServer } from 'socket.io'
-import { Client } from 'ssh2'
+import { Client, ClientChannel } from 'ssh2'
 
-function getCurrentDir(conn: Client) {
+function getCurrentDir(stream: ClientChannel) {
   return new Promise<string>((resolve, reject) => {
-    conn.exec('pwd', (err, stream) => {
-      if (err) {
-        reject(err)
-        return
+    let output = ''
+
+    const onData = (data: Buffer) => {
+      const text = data.toString()
+      output += text
+      if (output.includes('$')) {
+        const splits = output.split('\n')
+        if (splits.length === 3) {
+          const pathRE = /\r(.+?)\r/
+          const matches = pathRE.exec(splits[1])
+          if (matches && matches.length) {
+            stream.off('data', onData)
+            resolve(matches[1])
+            return
+          }
+        }
+        stream.off('data', onData)
+        reject(new Error('Cannot get current dir'))
       }
-      stream
-        .on('close', () => {
-          // conn.end()
-        })
-        .on('data', (data: Buffer) => {
-          const dir = data.toString().replace(/^\n+|\n+$/g, '')
-          resolve(dir)
-        })
-        .stderr.on('data', (data) => {
-          reject(data)
-        })
-    })
+    }
+    stream.on('data', onData)
+
+    stream.write('pwd\n')
   })
 }
 
@@ -56,7 +62,8 @@ export function createSocketServer(server: Server) {
       console.log('User disconnected')
     })
 
-    socket.on('ssh-connection', (sshConnectionCallback) => {
+    socket.on('ssh-connection', (config, sshConnectionCallback) => {
+      console.log('🚀 ~ file: socket.ts:107 ~ socket.on ~ connection:')
       const conn = new Client()
       conn.on('ready', () => {
         console.log('Client :: ready')
@@ -67,35 +74,41 @@ export function createSocketServer(server: Server) {
             throw err
           }
 
+          const onData = (data: Buffer) => {
+            console.log(`STDOUT: ${data}`)
+            socket.emit('data', data)
+          }
           stream
             .on('close', () => {
-              console.log('Stream :: close')
-              // conn.end()
+              conn.end()
             })
-            .on('data', (data: any) => {
-              console.log(`STDOUT: ${data}`)
-              socket.emit('data', data)
-            })
+            .on('data', onData)
 
           socket.on('command', async (command) => {
+            console.log(
+              '🚀 ~ file: socket.ts:90 ~ socket.on ~ command:',
+              command
+            )
             stream.write(`${command}`)
+          })
+
+          socket.on('upload', async (file, name) => {
+            stream.off('data', onData)
+            const dir = await getCurrentDir(stream)
+            stream.on('data', onData)
+            const remotePath = join(dir, name)
+            await uploadFile(conn, file, remotePath)
+            console.log('file success')
           })
         })
 
-        socket.on('upload', async (file, name) => {
-          const dir = await getCurrentDir(conn)
-          const remotePath = join(dir, name)
-          await uploadFile(conn, file, remotePath)
-          console.log('file success')
+        socket.on('ssh-disconnect', (callback) => {
+          conn.end()
+          callback && callback()
         })
       })
 
-      conn.connect({
-        host: '127.0.0.1',
-        port: 2222,
-        username: 'dev',
-        password: 'password'
-      })
+      conn.connect(config)
     })
   })
 }
