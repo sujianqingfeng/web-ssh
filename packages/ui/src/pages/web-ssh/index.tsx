@@ -5,20 +5,11 @@ import Header, { SSHConfig } from './components/Header'
 import { socket } from '../../utils/socket'
 import 'xterm/css/xterm.css'
 import Loading from '@/components/Loading'
+import { useToast } from '@/components/ui/use-toast'
 
 interface Loading {
   state: boolean
   message?: string
-}
-
-function getClipboardContent() {
-  const tempElement = document.createElement('div')
-  tempElement.contentEditable = true
-  document.body.appendChild(tempElement)
-  document.execCommand('paste')
-  const clipboardContent = tempElement.innerText
-  document.body.removeChild(tempElement)
-  return clipboardContent
 }
 
 export default function WebSSH() {
@@ -32,6 +23,7 @@ export default function WebSSH() {
   const [loading, setLoading] = useState<Loading>({
     state: false
   })
+  const { toast } = useToast()
 
   const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -67,20 +59,13 @@ export default function WebSSH() {
     })
 
     terminal.attachCustomKeyEventHandler((event) => {
-      const content = getClipboardContent()
-      console.log(
-        '🚀 ~ file: index.tsx:71 ~ terminal.attachCustomKeyEventHandler ~ content:',
-        content
-      )
-      // if (event.type === 'paste') {
-      //   const clipboardData = (
-      //     event.clipboardData || window.clipboardData
-      //   ).getData('text')
-      //   terminal.write(clipboardData)
-      //   event.preventDefault()
-      // }
-
-      // return false
+      if (event.type === 'keydown' && event.key === 'v' && event.ctrlKey) {
+        navigator.clipboard.readText().then((text) => {
+          socket.emit('command', text)
+        })
+        return false
+      }
+      return true
     })
 
     const onData = (data: Uint8Array) => {
@@ -92,6 +77,16 @@ export default function WebSSH() {
     socket.off('data')
     socket.on('data', onData)
 
+    socket.off('download')
+    socket.on('download', (data: ArrayBuffer) => {
+      console.log('🚀 ~ socket.on ~ data:', data)
+      const blob = new Blob([data], { type: 'application/octet-stream' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = 'downloaded-file.txt'
+      link.click()
+    })
+
     terminal.focus()
   }
 
@@ -102,13 +97,26 @@ export default function WebSSH() {
     })
 
     const sshConnect = () => {
-      socket.emit('ssh-connection', config, () => {
-        setSSHConnected(true)
-        setLoading({
-          state: false
-        })
-        onSSHConnection()
-      })
+      socket.emit(
+        'ssh-connection',
+        config,
+        ({ state, message }: { state: boolean; message?: string }) => {
+          if (!state) {
+            setSSHConnected(false)
+            toast({
+              title: 'Error',
+              description: message,
+              variant: 'destructive'
+            })
+            return
+          }
+          setSSHConnected(true)
+          setLoading({
+            state: false
+          })
+          onSSHConnection()
+        }
+      )
     }
 
     if (sshConnected) {
@@ -158,7 +166,9 @@ export default function WebSSH() {
         socketConnected={socketConnected}
       />
       <div className="h-full relative">
-        <div className="h-full" id="terminal" ref={xtermRef}></div>
+        <div className="h-full" id="terminal" ref={xtermRef}>
+          dd
+        </div>
 
         {loading.state && (
           <div className="absolute top-0 left-0 w-full h-full bg-primary flex justify-center items-center">

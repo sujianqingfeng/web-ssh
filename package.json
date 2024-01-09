@@ -8,13 +8,15 @@
   "main": "index.js",
   "scripts": {
     "dev": "pnpm run --filter server dev",
-    "dev:ui": "pnpm run --filter ui dev"
+    "dev:ui": "pnpm run --filter ui dev",
+    "test": "vitest"
   },
   "dependencies": {
     "react": "^18.2.0"
   },
   "devDependencies": {
     "@sujian/eslint-config": "^1.0.4",
-    "eslint": "^8.54.0"
+    "eslint": "^8.54.0",
+    "vitest": "^1.1.3"
   }
 }

@@ -2,6 +2,8 @@ import { Server } from 'http'
 import { join } from 'path/posix'
 import { Server as SocketServer } from 'socket.io'
 import { Client, ClientChannel } from 'ssh2'
+import { DOWNLOAD_COMMAND } from './constants'
+import { removeAsciiEscape } from './utils'
 
 function getCurrentDir(stream: ClientChannel) {
   return new Promise<string>((resolve, reject) => {
@@ -27,7 +29,7 @@ function getCurrentDir(stream: ClientChannel) {
     }
     stream.on('data', onData)
 
-    stream.write('pwd\n')
+    stream.write('pwd\r')
   })
 }
 
@@ -49,6 +51,24 @@ function uploadFile(conn: Client, file: Buffer, remotePath: string) {
   })
 }
 
+function downloadFile(conn: Client, remotePath: string) {
+  return new Promise<Buffer>((resolve, reject) => {
+    conn.sftp((err, sftp) => {
+      if (err) {
+        reject(err)
+        return
+      }
+      sftp.readFile(remotePath, (err, data) => {
+        if (err) {
+          reject(err)
+          return
+        }
+        resolve(data)
+      })
+    })
+  })
+}
+
 export function createSocketServer(server: Server) {
   const io = new SocketServer(server, {
     path: '/ws',
@@ -63,32 +83,81 @@ export function createSocketServer(server: Server) {
     })
 
     socket.on('ssh-connection', (config, sshConnectionCallback) => {
-      console.log('🚀 ~ file: socket.ts:107 ~ socket.on ~ connection:')
       const conn = new Client()
+
       conn.on('ready', () => {
         console.log('Client :: ready')
-        sshConnectionCallback()
+        sshConnectionCallback({
+          state: true
+        })
 
         conn.shell((err, stream) => {
           if (err) {
             throw err
           }
 
-          const onData = (data: Buffer) => {
-            console.log(`STDOUT: ${data}`)
+          const onData = async (data: Buffer) => {
+            console.log('🚀 ~ onData ~ data:', [data.toString()])
+
             socket.emit('data', data)
           }
+
           stream
             .on('close', () => {
               conn.end()
             })
             .on('data', onData)
 
+          let line = ''
+          let rawLine = ''
           socket.on('command', async (command) => {
-            console.log(
-              '🚀 ~ file: socket.ts:90 ~ socket.on ~ command:',
-              command
-            )
+            // console.log('🚀 ~ socket.on ~ command:', command)
+            line += command
+            rawLine += command
+
+            if (line.startsWith(`${DOWNLOAD_COMMAND} `)) {
+              if (command === '\t') {
+                const onD = (data: Buffer) => {
+                  const text = removeAsciiEscape(data.toString())
+                  line += text
+                  rawLine += text
+                  stream.off('data', onD)
+                }
+                stream.on('data', onD)
+              }
+
+              if (command.includes('\r')) {
+                const l = removeAsciiEscape(line.replace('\t', '')).trim()
+
+                for (let i = 0; i < rawLine.length; i++) {
+                  stream.write(`\x7F`)
+                }
+
+                const path = l.split(' ')[1]
+                if (path) {
+                  const dir = await getCurrentDir(stream)
+                  stream.on('data', onData)
+                  const remotePath = join(dir, path)
+                  const buffer = await downloadFile(conn, remotePath)
+                  socket.emit('download', buffer)
+                }
+
+                stream.write(`${command}`)
+
+                line = ''
+                rawLine = ''
+                return
+              }
+            }
+
+            if (command === '\x7F') {
+              line = line.replace('\x7F', '').slice(0, -1)
+            }
+
+            if (command.includes('\r')) {
+              line = ''
+              rawLine = ''
+            }
             stream.write(`${command}`)
           })
 
@@ -108,6 +177,12 @@ export function createSocketServer(server: Server) {
         })
       })
 
+      conn.on('error', (e) => {
+        sshConnectionCallback({
+          state: false,
+          message: e.message
+        })
+      })
       conn.connect(config)
     })
   })

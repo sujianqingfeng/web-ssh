@@ -15,4 +15,3 @@ services:
       - LOG_STDOUT= #optional
     ports:
       - 2222:2222
-    restart: unless-stopped
