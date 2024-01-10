@@ -15,7 +15,7 @@ export default createBrowserRouter([
         errorElement: <ErrorPage />
       },
       {
-        path: 'proxy',
+        path: '/web-proxy',
         element: <Proxy />
       }
     ]

@@ -16,6 +16,7 @@
     "fastify-type-provider-zod": "^1.1.9",
     "https-proxy-agent": "^7.0.2",
     "node-fetch": "^3.3.2",
+    "node-html-parser": "^6.1.12",
     "socket.io": "^4.7.2",
     "ssh2": "^1.15.0",
     "zod": "^3.22.4"
