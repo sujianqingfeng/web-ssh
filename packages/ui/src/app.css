@@ -69,6 +69,7 @@
 @layer base {
   * {
     /* @apply noborder-border; */
+    box-sizing: border-box;
   }
   body {
     /* @apply nobg-background notext-foreground; */

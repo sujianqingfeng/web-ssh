@@ -6,6 +6,7 @@ import { socket } from '../../utils/socket'
 import 'xterm/css/xterm.css'
 import Loading from '@/components/Loading'
 import { useToast } from '@/components/ui/use-toast'
+import { useDownload } from '@/hooks/download'
 
 interface Loading {
   state: boolean
@@ -24,13 +25,22 @@ export default function WebSSH() {
     state: false
   })
   const { toast } = useToast()
+  const { downloadByBlob } = useDownload()
 
   const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!sshConnected) {
+      return
+    }
+
     const file = event.target.files?.[0]
     if (!file) {
       return
     }
-    socket.emit('upload', file, file.name)
+    socket.emit('upload', file, file.name, () => {
+      toast({
+        title: 'file upload success'
+      })
+    })
   }
 
   const onSSHConnection = () => {
@@ -78,14 +88,7 @@ export default function WebSSH() {
     socket.on('data', onData)
 
     socket.off('download')
-    socket.on('download', (data: ArrayBuffer) => {
-      console.log('🚀 ~ socket.on ~ data:', data)
-      const blob = new Blob([data], { type: 'application/octet-stream' })
-      const link = document.createElement('a')
-      link.href = URL.createObjectURL(blob)
-      link.download = 'downloaded-file.txt'
-      link.click()
-    })
+    socket.on('download', downloadByBlob)
 
     terminal.focus()
   }
@@ -132,7 +135,7 @@ export default function WebSSH() {
   const onConnect = (config: SSHConfig) => {
     setLoading({
       state: true,
-      message: 'Socket Connecting...'
+      message: 'Socket Connecting ...'
     })
     if (socketConnected) {
       onSocketConnect(config)
@@ -159,16 +162,14 @@ export default function WebSSH() {
   }, [])
 
   return (
-    <div className="h-full">
+    <div className="h-full flex flex-col">
       <Header
         onFileChange={onFileChange}
         onConnect={onConnect}
-        socketConnected={socketConnected}
+        sshConnected={sshConnected}
       />
-      <div className="h-full relative">
-        <div className="h-full" id="terminal" ref={xtermRef}>
-          dd
-        </div>
+      <div className="flex-auto relative">
+        <div className="h-full" id="terminal" ref={xtermRef}></div>
 
         {loading.state && (
           <div className="absolute top-0 left-0 w-full h-full bg-primary flex justify-center items-center">

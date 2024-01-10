@@ -5,22 +5,23 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
 import { useKeyDown } from '@/hooks/key-down'
+import { cn } from '@/lib/utils'
 
 const sshSchema = z.object({
-  username: z.string(),
-  password: z.string(),
-  hostname: z.string(),
-  port: z.coerce.number()
+  username: z.string().trim().min(1, { message: 'username is required' }),
+  password: z.string().trim().min(1, { message: 'password is required' }),
+  hostname: z.string().trim().min(1, { message: 'hostname is required' }),
+  port: z.coerce.number().min(1).max(65535)
 })
 
 export type SSHConfig = z.infer<typeof sshSchema>
 interface HeaderProps {
-  socketConnected: boolean
   onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void
   onConnect: (config: SSHConfig) => void
+  sshConnected: boolean
 }
 export default function Header(props: HeaderProps) {
-  const { onFileChange, onConnect, socketConnected } = props
+  const { onFileChange, onConnect, sshConnected } = props
 
   const [searchParams] = useSearchParams()
   const [schema, setSchema] = useState(
@@ -32,9 +33,10 @@ export default function Header(props: HeaderProps) {
     const url = new URL(`http://${schema}`)
     const parse = sshSchema.safeParse(url)
     if (!parse.success) {
+      const error = parse.error.errors[0]
       toast({
         variant: 'destructive',
-        title: parse.error.message
+        title: error.message
       })
       return
     }
@@ -67,7 +69,12 @@ export default function Header(props: HeaderProps) {
           </Button>
         </div>
 
-        <label className="inline-flex cursor-pointer font-medium bg-primary text-sm rounded-md text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">
+        <label
+          className={cn(
+            'inline-flex cursor-pointer font-medium bg-primary text-sm rounded-md text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2',
+            !sshConnected && 'pointer-events-none opacity-50'
+          )}
+        >
           Upload File
           <Input
             className="hidden"
