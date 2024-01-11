@@ -24,9 +24,7 @@ export default function Header(props: HeaderProps) {
   const { onFileChange, onConnect, sshConnected } = props
 
   const [searchParams] = useSearchParams()
-  const [schema, setSchema] = useState(
-    searchParams.get('schema') || 'dev:password@127.0.0.1:2222'
-  )
+  const [schema, setSchema] = useState(searchParams.get('schema') || '')
   const { toast } = useToast()
 
   const _onConnect = () => {
