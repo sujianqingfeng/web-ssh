@@ -9,7 +9,9 @@
   "scripts": {
     "dev": "pnpm run --filter server dev",
     "dev:ui": "pnpm run --filter ui dev",
-    "test": "vitest"
+    "test": "vitest",
+    "build:ui": "pnpm run --filter ui build",
+    "build:server": "pnpm run --filter server build"
   },
   "dependencies": {
     "react": "^18.2.0"

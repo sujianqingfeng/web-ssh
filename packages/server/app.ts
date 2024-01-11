@@ -1,5 +1,7 @@
 import { createServer } from 'http'
+import path from 'node:path'
 import cors from '@fastify/cors'
+import { fastifyStatic } from '@fastify/static'
 import Fastify from 'fastify'
 import {
   ZodTypeProvider,
@@ -23,6 +25,10 @@ app.setSerializerCompiler(serializerCompiler)
 createSocketServer(server)
 
 app.register(proxyRouters)
+
+app.register(fastifyStatic, {
+  root: path.join(__dirname, 'public')
+})
 
 const start = async () => {
   try {

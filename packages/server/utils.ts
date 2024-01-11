@@ -18,3 +18,16 @@ export function removeAsciiEscape(data: string) {
   // eslint-disable-next-line no-control-regex
   return data.replace(/\x1B\[[^@-~]*[@-~]/g, '').replace(/[^\x20-\x7E]/g, '')
 }
+
+export function importReplace(
+  text: string,
+  callback: (path: string) => string | undefined
+) {
+  return text.replace(/import\("(.+?)"\)/g, ($1, $2) => {
+    const p = callback($2)
+    if (p) {
+      return `import("${p}")`
+    }
+    return $1
+  })
+}
